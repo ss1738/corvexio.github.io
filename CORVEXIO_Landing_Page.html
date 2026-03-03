@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORVEXIO — Autonomous Scientific Discovery</title>
+<meta name="description" content="CORVEXIO reads every scientific paper, finds research gaps, and generates novel hypotheses — verified by AI. The autonomous scientist that never sleeps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #050507;
+    --dark: #0c0c10;
+    --surface: #131318;
+    --surface-2: #1a1a22;
+    --border: #22222e;
+    --border-light: #2e2e3c;
+    --text: #ededf4;
+    --text-secondary: #9494ad;
+    --text-tertiary: #5e5e78;
+    --mint: #00e89d;
+    --mint-dim: rgba(0,232,157,0.08);
+    --mint-glow: rgba(0,232,157,0.15);
+    --mint-strong: rgba(0,232,157,0.25);
+    --blue: #3b82f6;
+    --violet: #8b5cf6;
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--black);
+    color: var(--text);
+    overflow-x: hidden;
+    line-height: 1.65;
+  }
+
+  ::selection { background: var(--mint-strong); color: var(--black); }
+
+  /* === NOISE OVERLAY === */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* === SUBTLE GRID === */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(34,34,46,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,34,46,0.3) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, black, transparent);
+  }
+
+  /* === NAV === */
+  nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 100;
+    padding: 0 48px;
+    height: 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(24px) saturate(1.2);
+    background: rgba(5,5,7,0.75);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: 5px;
+    color: var(--mint);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--mint);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--mint-glow);
+    animation: pulse-dot 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--mint-glow); }
+    50% { opacity: 0.4; box-shadow: 0 0 4px var(--mint-glow); }
+  }
+
+  .logo-sub {
+    font-weight: 400;
+    font-size: 0.65rem;
+    color: var(--text-tertiary);
+    letter-spacing: 3px;
+    margin-left: 4px;
+  }
+
+  .nav-links { display: flex; gap: 36px; align-items: center; }
+  .nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.82rem;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--mint) !important;
+    color: var(--black) !important;
+    padding: 9px 22px !important;
+    border-radius: 6px;
+    font-weight: 700 !important;
+    font-size: 0.8rem !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s !important;
+  }
+  .nav-cta:hover {
+    box-shadow: 0 0 32px var(--mint-glow), 0 4px 16px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+  }
+
+  /* === CONTAINER === */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  /* === HERO === */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 140px 48px 100px;
+    z-index: 1;
+  }
+
+  .hero-glow {
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--mint-glow) 0%, transparent 70%);
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    filter: blur(60px);
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 7px 18px 7px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  .eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--mint);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--mint);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: clamp(3.2rem, 7.5vw, 6.5rem);
+    line-height: 0.95;
+    letter-spacing: -3px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.7s ease 0.1s both;
+  }
+
+  .hero h1 .gradient-text {
+    display: block;
+    background: linear-gradient(135deg, var(--mint) 0%, #4de8b8 30%, var(--blue) 70%, var(--violet) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-desc {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    color: var(--text-secondary);
+    max-width: 560px;
+    font-weight: 400;
+    line-height: 1.75;
+    margin-bottom: 44px;
+    animation: fadeUp 0.7s ease 0.2s both;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    animation: fadeUp 0.7s ease 0.3s both;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--mint);
+    color: var(--black);
+    padding: 15px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 0.3px;
+    text-decoration: none;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 0 48px var(--mint-glow), 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 15px 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    font-family: 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+  }
+  .btn-ghost:hover { border-color: var(--mint); color: var(--mint); }
+
+  /* === TERMINAL === */
+  .terminal-wrapper {
+    margin-top: 72px;
+    width: 100%;
+    max-width: 820px;
+    animation: fadeUp 0.7s ease 0.4s both;
+  }
+
+  .terminal {
+    background: var(--dark);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02);
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .t-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .t-dot.r { background: #ff5f57; }
+  .t-dot.y { background: #febc2e; }
+  .t-dot.g { background: #28c840; }
+
+  .t-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-left: 10px;
+  }
+
+  .terminal-body {
+    padding: 22px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 2.1;
+    color: var(--text-secondary);
+    min-height: 220px;
+  }
+
+  .t-line { opacity: 0; animation: typeSlide 0.4s ease forwards; }
+  .t-line:nth-child(1) { animation-delay: 0.8s; }
+  .t-line:nth-child(2) { animation-delay: 1.4s; }
+  .t-line:nth-child(3) { animation-delay: 2.0s; }
+  .t-line:nth-child(4) { animation-delay: 2.6s; }
+  .t-line:nth-child(5) { animation-delay: 3.2s; }
+  .t-line:nth-child(6) { animation-delay: 3.8s; }
+  .t-line:nth-child(7) { animation-delay: 4.3s; }
+  .t-line:nth-child(8) { animation-delay: 4.8s; }
+
+  @keyframes typeSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .t-prompt { color: var(--mint); }
+  .t-cmd { color: var(--text); }
+  .t-info { color: var(--blue); }
+  .t-warn { color: var(--amber); }
+  .t-ok { color: var(--mint); }
+
+  /* === LOGOS / SOCIAL PROOF === */
+  .proof-section {
+    position: relative;
+    z-index: 1;
+    padding: 56px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .proof-label {
+    text-align: center;
+    font-size: 0.72rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    margin-bottom: 32px;
+  }
+
+  .proof-grid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 64px;
+    flex-wrap: wrap;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  .proof-item {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-tertiary);
+    letter-spacing: 1px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+  }
+  .proof-item:hover { opacity: 0.8; }
+
+  /* === STATS === */
+  .stats-section {
+    position: relative;
+    z-index: 1;
+    padding: 80px 48px;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .stat-block {
+    flex: 1;
+    text-align: center;
+    padding: 32px 24px;
+    position: relative;
+  }
+  .stat-block:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .stat-number {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.5rem, 4vw, 3.5rem);
+    color: var(--mint);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .stat-desc {
+    font-size: 0.82rem;
+    color: var(--text-tertiary);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+
+  /* === SECTIONS SHARED === */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 120px 48px;
+  }
+
+  .section-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--mint);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-weight: 500;
+  }
+
+  .section-heading {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 20px;
+  }
+
+  .section-desc {
+    color: var(--text-secondary);
+    max-width: 520px;
+    font-weight: 400;
+    line-height: 1.8;
+    font-size: 1.05rem;
+  }
+
+  /* === PROBLEM SECTION === */
+  .problem-section { background: var(--black); }
+
+  .problem-layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .problem-left .section-desc {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.15rem;
+    font-style: italic;
+    color: var(--text-secondary);
+    line-height: 1.9;
+  }
+
+  .problem-cards { display: flex; flex-direction: column; gap: 14px; }
+
+  .p-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: default;
+  }
+  .p-card:hover {
+    border-color: var(--mint);
+    background: var(--surface-2);
+    transform: translateX(6px);
+  }
+
+  .p-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--mint-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .p-card-content h4 {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 3px;
+    letter-spacing: 0.2px;
+  }
+  .p-card-content p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  /* === PIPELINE === */
+  .pipeline-section { background: var(--dark); }
+
+  .pipeline-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .pipeline-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    margin-top: 64px;
+    background: var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .pipe-step {
+    background: var(--surface);
+    padding: 44px 28px 36px;
+    text-align: center;
+    transition: all 0.4s;
+    position: relative;
+  }
+  .pipe-step:hover { background: var(--surface-2); }
+
+  .pipe-num {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: 3.5rem;
+    color: var(--mint);
+    opacity: 0.12;
+    line-height: 1;
+    margin-bottom: 16px;
+    letter-spacing: -2px;
+  }
+
+  .pipe-step h4 {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 12px;
+    letter-spacing: 0.3px;
+  }
+
+  .pipe-step p {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.65;
+  }
+
+  .pipe-tag {
+    display: inline-block;
+    margin-top: 18px;
+    padding: 4px 14px;
+    background: var(--mint-dim);
+    border: 1px solid rgba(0,232,157,0.2);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--mint);
+    letter-spacing: 1.5px;
+    font-weight: 500;
+  }
+
+  /* === USE CASES === */
+  .usecases-section { background: var(--black); }
+
+  .uc-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .uc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 56px;
+  }
+
+  .uc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 36px 28px 32px;
+    text-align: left;
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .uc-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--mint), var(--blue));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .uc-card:hover::after { opacity: 1; }
+  .uc-card:hover { transform: translateY(-4px); border-color: var(--border-light); }
+
+  .uc-icon {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    display: block;
+  }
+  .uc-card h4 {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 10px;
+  }
+  .uc-card p {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+
+  /* === PRICING === */
+  .pricing-section {
+    background: var(--dark);
+    text-align: center;
+  }
+
+  .pricing-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-top: 56px;
+  }
+
+  .price-card {
+    background: var(--surface);
+    padding: 40px 24px 36px;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .price-card.featured {
+    background: var(--surface-2);
+    border-top: 2px solid var(--mint);
+  }
+
+  .price-tier {
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .price-amount {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: 2.5rem;
+    color: var(--text);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .price-amount span {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .price-desc {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 8px;
+    margin-bottom: 24px;
+    min-height: 36px;
+  }
+
+  .price-features {
+    list-style: none;
+    text-align: left;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 2.2;
+  }
+
+  .price-features li::before {
+    content: '✓';
+    color: var(--mint);
+    margin-right: 8px;
+    font-weight: 700;
+  }
+
+  .price-btn {
+    display: block;
+    width: 100%;
+    margin-top: 28px;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    text-align: center;
+  }
+
+  .price-btn-primary {
+    background: var(--mint);
+    color: var(--black);
+    border: none;
+  }
+  .price-btn-primary:hover { box-shadow: 0 0 24px var(--mint-glow); }
+
+  .price-btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .price-btn-ghost:hover { border-color: var(--mint); color: var(--mint); }
+
+  /* === TECH STACK === */
+  .tech-section {
+    background: var(--black);
+    border-top: 1px solid var(--border);
+  }
+
+  .tech-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .tech-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 44px;
+  }
+
+  .tech-pill {
+    padding: 10px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    transition: all 0.3s;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .tech-pill:hover { border-color: var(--mint); color: var(--mint); }
+
+  /* === FINAL CTA === */
+  .cta-section {
+    position: relative;
+    text-align: center;
+    padding: 160px 48px;
+    z-index: 1;
+    background: var(--dark);
+    overflow: hidden;
+  }
+
+  .cta-glow {
+    position: absolute;
+    width: 800px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--mint-glow) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    filter: blur(80px);
+    opacity: 0.5;
+  }
+
+  .cta-section .section-eyebrow { text-align: center; }
+
+  .cta-section h2 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+    line-height: 1.05;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cta-section .section-desc {
+    margin: 0 auto 40px;
+    text-align: center;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .waitlist-form {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    max-width: 460px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .waitlist-form input {
+    flex: 1;
+    padding: 15px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .waitlist-form input:focus { border-color: var(--mint); }
+  .waitlist-form input::placeholder { color: var(--text-tertiary); }
+
+  .waitlist-count {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+  }
+
+  .waitlist-count span {
+    color: var(--mint);
+    font-weight: 700;
+  }
+
+  /* === FOOTER === */
+  footer {
+    position: relative;
+    z-index: 1;
+    padding: 36px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--black);
+  }
+
+  .footer-left {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+  }
+
+  .footer-links { display: flex; gap: 28px; }
+  .footer-links a {
+    color: var(--text-tertiary);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+  .footer-links a:hover { color: var(--mint); }
+
+  /* === ANIMATIONS === */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* === SCROLL REVEAL === */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 1024px) {
+    .pipeline-grid { grid-template-columns: repeat(2, 1fr); }
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    .hero { padding: 120px 20px 80px; }
+    section { padding: 80px 20px; }
+    .container { padding: 0 20px; }
+    .problem-layout { grid-template-columns: 1fr; gap: 48px; }
+    .pipeline-grid { grid-template-columns: 1fr; }
+    .uc-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .stats-row { flex-direction: column; gap: 8px; }
+    .stat-block:not(:last-child)::after { display: none; }
+    .hero-actions { flex-direction: column; width: 100%; max-width: 320px; }
+    .hero-actions a, .hero-actions button { width: 100%; justify-content: center; }
+    .waitlist-form { flex-direction: column; }
+    footer { flex-direction: column; gap: 16px; text-align: center; }
+    .proof-grid { gap: 32px; }
+  }
+
+  /* hamburger for mobile */
+  .mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  @media (max-width: 768px) {
+    .mobile-menu-btn { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <span class="logo-dot"></span>
+    CORVEXIO
+    <span class="logo-sub">AUTONOMOUS DISCOVERY</span>
+  </a>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#pipeline">How It Works</a>
+    <a href="#usecases">Use Cases</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#waitlist" class="nav-cta">Get Early Access</a>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('waitlist').scrollIntoView({behavior:'smooth'})">→</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+
+  <div class="hero-eyebrow">
+    <span class="eyebrow-dot"></span>
+    Now in Alpha &nbsp;·&nbsp; Accepting Early Research Partners
+  </div>
+
+  <h1>
+    Read Every Paper.<br>
+    <span class="gradient-text">Discover What's Missing.</span>
+  </h1>
+
+  <p class="hero-desc">
+    CORVEXIO autonomously ingests the scientific literature, maps knowledge gaps, and generates novel hypotheses — verified against the evidence.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#waitlist" class="btn-primary">Request Early Access →</a>
+    <a href="#pipeline" class="btn-ghost">See How It Works</a>
+  </div>
+
+  <!-- Terminal Demo -->
+  <div class="terminal-wrapper">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="t-dot r"></div>
+        <div class="t-dot y"></div>
+        <div class="t-dot g"></div>
+        <span class="t-title">corvexion-engine v0.1.0</span>
+      </div>
+      <div class="terminal-body">
+        <div class="t-line"><span class="t-prompt">corvexion $</span> <span class="t-cmd">discover --domain "CRISPR gene therapy" --depth 3</span></div>
+        <div class="t-line"><span class="t-info">▸ Ingesting 47,832 papers from PubMed, arXiv, bioRxiv...</span></div>
+        <div class="t-line"><span class="t-info">▸ Building knowledge graph: 1.2M entities, 4.8M relations</span></div>
+        <div class="t-line"><span class="t-info">▸ Running gap analysis across 12 research frontiers...</span></div>
+        <div class="t-line"><span class="t-warn">⚡ 3 novel research gaps identified (confidence: 0.91)</span></div>
+        <div class="t-line"><span class="t-ok">✓ Hypothesis 1: CRISPR-Cas13d + lipid nanoparticle delivery</span></div>
+        <div class="t-line"><span class="t-ok">&nbsp;&nbsp;may overcome AAV immunogenicity in repeat dosing</span></div>
+        <div class="t-line"><span class="t-ok">✓ Judge Agent: VERIFIED — 87% evidence support, novelty 0.82</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<div class="proof-section">
+  <div class="proof-label">Built with technology trusted by</div>
+  <div class="proof-grid">
+    <span class="proof-item">OpenAI</span>
+    <span class="proof-item">Pinecone</span>
+    <span class="proof-item">LangChain</span>
+    <span class="proof-item">Neo4j</span>
+    <span class="proof-item">Azure AI</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-section">
+  <div class="stats-row">
+    <div class="stat-block reveal">
+      <div class="stat-number">70%</div>
+      <div class="stat-desc">Of researchers' time is spent reading</div>
+    </div>
+    <div class="stat-block reveal">
+      <div class="stat-number">2M+</div>
+      <div class="stat-desc">Papers published per year</div>
+    </div>
+    <div class="stat-block reveal">
+      <div class="stat-number">10×</div>
+      <div class="stat-desc">Faster hypothesis generation</div>
+    </div>
+    <div class="stat-block reveal">
+      <div class="stat-number">0</div>
+      <div class="stat-desc">Hallucinations past Judge Agent</div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section id="problem" class="problem-section">
+  <div class="problem-layout">
+    <div class="problem-left reveal">
+      <div class="section-eyebrow">// The Problem</div>
+      <h2 class="section-heading">Scientific discovery is bottlenecked by humans.</h2>
+      <p class="section-desc">
+        The volume of published knowledge doubles every 12 years. Breakthroughs hide at the intersections of papers nobody has time to read together. The next great discovery already exists — scattered across a thousand abstracts.
+      </p>
+    </div>
+    <div class="problem-cards reveal">
+      <div class="p-card">
+        <div class="p-icon">📚</div>
+        <div class="p-card-content">
+          <h4>Information Overload</h4>
+          <p>2M+ papers per year. A researcher can deeply read maybe 200.</p>
+        </div>
+      </div>
+      <div class="p-card">
+        <div class="p-icon">🔗</div>
+        <div class="p-card-content">
+          <h4>Siloed Knowledge</h4>
+          <p>Fields don't talk to each other. The best ideas live at intersections.</p>
+        </div>
+      </div>
+      <div class="p-card">
+        <div class="p-icon">⏳</div>
+        <div class="p-card-content">
+          <h4>Slow Discovery Loop</h4>
+          <p>Literature review: months. Hypothesis testing: years. The loop is broken.</p>
+        </div>
+      </div>
+      <div class="p-card">
+        <div class="p-icon">💡</div>
+        <div class="p-card-content">
+          <h4>Missed Connections</h4>
+          <p>The cure might already exist across two papers no one has read together.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<section id="pipeline" class="pipeline-section">
+  <div class="pipeline-inner">
+    <div class="section-eyebrow reveal">// The Pipeline</div>
+    <h2 class="section-heading reveal">From raw literature to verified hypotheses.<br>Fully autonomous.</h2>
+    <p class="section-desc reveal" style="margin: 0 auto;">
+      CORVEXIO doesn't just search papers. It reads them, maps them, reasons about what's missing, and verifies every claim.
+    </p>
+
+    <div class="pipeline-grid reveal">
+      <div class="pipe-step">
+        <div class="pipe-num">01</div>
+        <h4>Ingest</h4>
+        <p>Continuously pulls from PubMed, arXiv, bioRxiv, patents, and clinical trials. Processes full-text at scale.</p>
+        <span class="pipe-tag">RAG + VECTOR DB</span>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">02</div>
+        <h4>Understand</h4>
+        <p>Builds dynamic knowledge graphs. Extracts entities, methods, results, and causal relationships.</p>
+        <span class="pipe-tag">KNOWLEDGE GRAPH</span>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">03</div>
+        <h4>Discover</h4>
+        <p>Identifies research gaps, contradictions, and unexplored intersections. Generates ranked hypotheses.</p>
+        <span class="pipe-tag">AGENTIC AI</span>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">04</div>
+        <h4>Verify</h4>
+        <p>A Judge Agent audits every hypothesis for hallucination, logical consistency, and novelty.</p>
+        <span class="pipe-tag">JUDGE AGENT</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section id="usecases" class="usecases-section">
+  <div class="uc-inner">
+    <div class="section-eyebrow reveal">// Applications</div>
+    <h2 class="section-heading reveal">Built for the frontier.</h2>
+    <p class="section-desc reveal" style="margin: 0 auto;">Every domain where knowledge is the bottleneck.</p>
+
+    <div class="uc-grid">
+      <div class="uc-card reveal">
+        <span class="uc-icon">🧬</span>
+        <h4>Drug Discovery</h4>
+        <p>Identify novel drug targets by finding unexplored protein-pathway interactions across millions of biomedical papers.</p>
+      </div>
+      <div class="uc-card reveal">
+        <span class="uc-icon">⚡</span>
+        <h4>Materials Science</h4>
+        <p>Discover new material compositions by cross-referencing synthesis methods, properties, and applications.</p>
+      </div>
+      <div class="uc-card reveal">
+        <span class="uc-icon">🔬</span>
+        <h4>Biotech R&D</h4>
+        <p>Accelerate research by autonomously generating experiment designs from the latest published methods.</p>
+      </div>
+      <div class="uc-card reveal">
+        <span class="uc-icon">🧪</span>
+        <h4>Clinical Research</h4>
+        <p>Cross-reference clinical trials with published literature to surface promising treatment combinations.</p>
+      </div>
+      <div class="uc-card reveal">
+        <span class="uc-icon">🌍</span>
+        <h4>Climate Science</h4>
+        <p>Connect satellite data research with atmospheric models to uncover overlooked environmental patterns.</p>
+      </div>
+      <div class="uc-card reveal">
+        <span class="uc-icon">🏗️</span>
+        <h4>Patent Intelligence</h4>
+        <p>Map white space between existing patents and research to identify patentable innovations.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="pricing-section">
+  <div class="pricing-inner">
+    <div class="section-eyebrow reveal">// Pricing</div>
+    <h2 class="section-heading reveal">Start free. Scale when you're ready.</h2>
+
+    <div class="pricing-grid reveal">
+      <div class="price-card">
+        <div class="price-tier">Free</div>
+        <div class="price-amount">$0</div>
+        <div class="price-desc">For PhD students and indie researchers</div>
+        <ul class="price-features">
+          <li>100 papers/month</li>
+          <li>5 hypotheses/month</li>
+          <li>Basic citations</li>
+          <li>Community support</li>
+        </ul>
+        <a href="#waitlist" class="price-btn price-btn-ghost">Get Started</a>
+      </div>
+      <div class="price-card featured">
+        <div class="price-tier">Pro</div>
+        <div class="price-amount">$49<span>/mo</span></div>
+        <div class="price-desc">For postdocs and research leads</div>
+        <ul class="price-features">
+          <li>10K papers/month</li>
+          <li>Unlimited hypotheses</li>
+          <li>PDF export &amp; reports</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#waitlist" class="price-btn price-btn-primary">Get Early Access</a>
+      </div>
+      <div class="price-card">
+        <div class="price-tier">Team</div>
+        <div class="price-amount">$199<span>/mo</span></div>
+        <div class="price-desc">For research labs (5 seats)</div>
+        <ul class="price-features">
+          <li>50K papers/month</li>
+          <li>Shared knowledge graphs</li>
+          <li>Collaboration tools</li>
+          <li>Admin dashboard</li>
+        </ul>
+        <a href="#waitlist" class="price-btn price-btn-ghost">Contact Us</a>
+      </div>
+      <div class="price-card">
+        <div class="price-tier">Enterprise</div>
+        <div class="price-amount">Custom</div>
+        <div class="price-desc">For pharma, biotech, R&D</div>
+        <ul class="price-features">
+          <li>Unlimited everything</li>
+          <li>API access + RBAC</li>
+          <li>Custom integrations</li>
+          <li>Dedicated SLA</li>
+        </ul>
+        <a href="#waitlist" class="price-btn price-btn-ghost">Talk to Sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section class="tech-section">
+  <div class="tech-inner">
+    <div class="section-eyebrow reveal">// Infrastructure</div>
+    <h2 class="section-heading reveal">Enterprise-grade AI stack.</h2>
+    <div class="tech-pills reveal">
+      <span class="tech-pill">Python</span>
+      <span class="tech-pill">LangChain</span>
+      <span class="tech-pill">Pinecone</span>
+      <span class="tech-pill">OpenAI GPT-4o</span>
+      <span class="tech-pill">Neo4j</span>
+      <span class="tech-pill">FastAPI</span>
+      <span class="tech-pill">Next.js</span>
+      <span class="tech-pill">Azure AI</span>
+      <span class="tech-pill">Agentic RAG</span>
+      <span class="tech-pill">Judge Agent</span>
+      <span class="tech-pill">Knowledge Graphs</span>
+      <span class="tech-pill">Vector Search</span>
+      <span class="tech-pill">CI/CD</span>
+      <span class="tech-pill">RBAC</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="waitlist" class="cta-section">
+  <div class="cta-glow"></div>
+  <div class="section-eyebrow">// Early Access</div>
+  <h2>The future of discovery<br>starts here.</h2>
+  <p class="section-desc">Join the waitlist. Be among the first to access autonomous scientific discovery.</p>
+  <div class="waitlist-form" id="waitlist-form">
+    <input type="email" placeholder="you@research-lab.com" id="email-input">
+    <button class="btn-primary" onclick="handleWaitlist()">Join Waitlist</button>
+  </div>
+  <div class="waitlist-count">
+    <span id="waitlist-num">47</span> researchers already on the list. No credit card required.
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">© 2026 CORVEXIO — Built by <a href="https://linkedin.com/in/satyawan-singh-b27006259" target="_blank" style="color:var(--text-secondary);text-decoration:none;">Satyawan Singh</a></div>
+  <div class="footer-links">
+    <a href="https://github.com/ss1738" target="_blank">GitHub</a>
+    <a href="https://linkedin.com/in/satyawan-singh-b27006259" target="_blank">LinkedIn</a>
+    <a href="/cdn-cgi/l/email-protection#770416030e160016190516031f1805124637101a161e1b5914181a">Contact</a>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Waitlist handler
+  function handleWaitlist() {
+    const email = document.getElementById('email-input').value;
+    if (email && email.includes('@') && email.includes('.')) {
+      document.getElementById('waitlist-form').innerHTML =
+        '<div style="color: var(--mint); font-family: JetBrains Mono, monospace; font-size: 0.95rem; padding: 16px 0;">✓ You\'re on the list. We\'ll be in touch soon.</div>';
+      // Increment counter
+      const numEl = document.getElementById('waitlist-num');
+      numEl.textContent = parseInt(numEl.textContent) + 1;
+    } else {
+      document.getElementById('email-input').style.borderColor = 'var(--rose)';
+      setTimeout(() => {
+        document.getElementById('email-input').style.borderColor = 'var(--border)';
+      }, 2000);
+    }
+  }
+
+  // Enter key for waitli
