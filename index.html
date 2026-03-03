@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -916,6 +916,7 @@
   }
 
   /* === SCROLL REVEAL === */
+  .no-js .reveal{opacity:1!important;transform:none!important}
   .reveal {
     opacity: 0;
     transform: translateY(30px);
@@ -1016,10 +1017,10 @@
         <div class="t-dot r"></div>
         <div class="t-dot y"></div>
         <div class="t-dot g"></div>
-        <span class="t-title">corvexion-engine v0.1.0</span>
+        <span class="t-title">corvexio-engine v0.1.0</span>
       </div>
       <div class="terminal-body">
-        <div class="t-line"><span class="t-prompt">corvexion $</span> <span class="t-cmd">discover --domain "CRISPR gene therapy" --depth 3</span></div>
+        <div class="t-line"><span class="t-prompt">corvexio $</span> <span class="t-cmd">discover --domain "CRISPR gene therapy" --depth 3</span></div>
         <div class="t-line"><span class="t-info">▸ Ingesting 47,832 papers from PubMed, arXiv, bioRxiv...</span></div>
         <div class="t-line"><span class="t-info">▸ Building knowledge graph: 1.2M entities, 4.8M relations</span></div>
         <div class="t-line"><span class="t-info">▸ Running gap analysis across 12 research frontiers...</span></div>
@@ -1298,6 +1299,7 @@
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  document.documentElement.classList.remove("no-js");
   // Scroll reveal
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
